@@ -35,7 +35,7 @@ class ExportTest(TestBaseCase):
                 rv = self.app.post(
                     url_for('import_data', class_code='E18', project_id=project_id),
                     data={'file': file, 'duplicate': True}, follow_redirects=True)
-            assert b'King Arthur' in rv.data
+            assert b'Vienna' in rv.data
             with open(os.path.dirname(__file__) + '/../static/import/example.xlsx', 'rb') as file:
                 rv = self.app.post(
                     url_for('import_data', class_code='E18', project_id=project_id),
@@ -47,13 +47,13 @@ class ExportTest(TestBaseCase):
                     data={'file': file}, follow_redirects=True)
             assert b'File type not allowed' in rv.data
             rv = self.app.get(url_for('import_project_view', id_=project_id))
-            assert b'King Arthur' in rv.data
+            assert b'London' in rv.data
 
             # View an imported entity
             with app.test_request_context():
                 app.preprocess_request()
                 place_id = EntityMapper.get_by_system_type('place')[0].id
-            rv = self.app.get(url_for('actor_view', id_=place_id))
+            rv = self.app.get(url_for('place_view', id_=place_id))
             assert b'Yup' in rv.data
 
             rv = self.app.get(url_for('import_project_delete', id_=project_id),

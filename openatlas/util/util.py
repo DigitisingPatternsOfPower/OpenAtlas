@@ -22,7 +22,6 @@ import openatlas
 from openatlas import app
 from openatlas.models.classObject import ClassObject
 from openatlas.models.date import DateMapper
-from openatlas.models.imports import Project
 from openatlas.models.property import Property
 from openatlas.models.user import User
 
@@ -35,7 +34,7 @@ def convert_size(size_bytes: int) -> str:
     return "%s %s" % (int(size_bytes / math.pow(1024, i)), size_name[i])
 
 
-def get_file_path(entity) -> str:
+def get_file_path(entity) -> Optional[str]:
     entity_id = entity if type(entity) is int else entity.id
     path = glob.glob(os.path.join(app.config['UPLOAD_FOLDER_PATH'], str(entity_id) + '.*'))
     return path[0] if path else None
@@ -103,7 +102,7 @@ class MLStripper(HTMLParser):
         self.reset()
         self.strict = False
         self.convert_charrefs = True
-        self.fed = []  # type: list
+        self.fed: list = []
 
     def handle_data(self, d):
         self.fed.append(d)
@@ -112,10 +111,7 @@ class MLStripper(HTMLParser):
         return ''.join(self.fed)
 
 
-def sanitize(string: str, mode: Optional[str] = None) -> str:
-    if not mode:
-        # Remove all characters from a string except ASCII letters and numbers
-        return re.sub('[^A-Za-z0-9]+', '', string).strip()
+def sanitize(string: str, mode: str = None) -> str:
     if mode == 'node':
         # Remove all characters from a string except letters, numbers and spaces
         return re.sub(r'([^\s\w]|_)+', '', string).strip()
@@ -123,17 +119,20 @@ def sanitize(string: str, mode: Optional[str] = None) -> str:
         s = MLStripper()
         s.feed(string)
         return s.get_data().strip()
+    # Remove all characters from a string except ASCII letters and numbers
+    return re.sub('[^A-Za-z0-9]+', '', string).strip()
 
 
-def get_file_stats(path: Optional[str] = app.config['UPLOAD_FOLDER_PATH']) -> dict:
+def get_file_stats(path: str = app.config['UPLOAD_FOLDER_PATH']) -> dict:
     """ Build a dict with file ids and stats from files in given directory.
         It's much faster to do this in one call for every file."""
     file_stats = {}
-    for file in os.scandir(path):
-        split_name = os.path.splitext(file.name)
-        if len(split_name) > 1 and split_name[0].isdigit():
-            file_stats[int(split_name[0])] = {'ext': split_name[1], 'size': file.stat().st_size,
-                                              'date': file.stat().st_ctime}
+    with os.scandir(path) as it:
+        for file in it:
+            split_name = os.path.splitext(file.name)
+            if len(split_name) > 1 and split_name[0].isdigit():
+                file_stats[int(split_name[0])] = {'ext': split_name[1], 'size': file.stat().st_size,
+                                                  'date': file.stat().st_ctime}
     return file_stats
 
 
@@ -145,7 +144,7 @@ def display_remove_link(url: str, name: str) -> str:
 
 
 def add_type_data(entity, data, location=None):
-    type_data = OrderedDict()
+    type_data = {}
     # Nodes
     if location:
         entity.nodes.update(location.nodes)  # Add location types
@@ -169,7 +168,7 @@ def add_type_data(entity, data, location=None):
     if 'type' in type_data:
         type_data.move_to_end('type', last=False)
     for root_name, nodes in type_data.items():
-        data.append((root_name, '<br />'.join(nodes)))
+        data.append((root_name, '<br>'.join(nodes)))
     return data
 
 
@@ -199,7 +198,7 @@ def get_entity_data(entity, location=None):
     data = []
     # Aliases
     if entity.aliases:
-        data.append((uc_first(_('alias')), '<br />'.join(entity.aliases.values())))
+        data.append((uc_first(_('alias')), '<br>'.join(entity.aliases.values())))
 
     # Dates
     from_link = ''
@@ -225,7 +224,7 @@ def get_entity_data(entity, location=None):
 
     # Info for source
     if entity.system_type == 'source content':
-        data.append((uc_first(_('information carrier')), '<br />'.join(
+        data.append((uc_first(_('information carrier')), '<br>'.join(
             [link(recipient) for recipient in entity.get_linked_entities('P128', inverse=True)])))
 
     # Info for events
@@ -241,11 +240,11 @@ def get_entity_data(entity, location=None):
 
         # Info for acquisitions
         if entity.class_.code == 'E8':
-            data.append((uc_first(_('recipient')), '<br />'.join(
+            data.append((uc_first(_('recipient')), '<br>'.join(
                 [link(recipient) for recipient in entity.get_linked_entities('P22')])))
-            data.append((uc_first(_('donor')), '<br />'.join(
+            data.append((uc_first(_('donor')), '<br>'.join(
                 [link(donor) for donor in entity.get_linked_entities('P23')])))
-            data.append((uc_first(_('given place')), '<br />'.join(
+            data.append((uc_first(_('given place')), '<br>'.join(
                 [link(place) for place in entity.get_linked_entities('P24')])))
 
         # Info for moves
@@ -258,10 +257,10 @@ def get_entity_data(entity, location=None):
                 elif linked_entity.class_.code == 'E84':
                     object_data.append(linked_entity)
             if person_data:
-                data.append((uc_first(_('person')), '<br />'.join(
+                data.append((uc_first(_('person')), '<br>'.join(
                     [link(object_) for object_ in person_data])))
             if object_data:
-                data.append((uc_first(_('object')), '<br />'.join(
+                data.append((uc_first(_('object')), '<br>'.join(
                     [link(object_) for object_ in object_data])))
     return add_system_data(entity, data)
 
@@ -338,7 +337,7 @@ def required_group(group):
     return wrapper
 
 
-def bookmark_toggle(entity_id: int, for_table: Optional[bool] = False) -> str:
+def bookmark_toggle(entity_id: int, for_table: bool = False) -> str:
     label = uc_first(_('bookmark remove') if entity_id in current_user.bookmarks else _('bookmark'))
     if for_table:
         return """<a id="bookmark{entity_id}" onclick="ajaxBookmark('{entity_id}');"
@@ -388,6 +387,7 @@ def get_profile_image_table_link(file, entity, extension, profile_image_id):
 def link(entity) -> str:
     # Builds an html link to entity view for display
     from openatlas.models.entity import Entity
+    from openatlas.models.imports import Project
     if not entity:
         return ''
     html = ''
@@ -433,7 +433,7 @@ def link(entity) -> str:
     return html
 
 
-def truncate_string(string: str, length: Optional[int] = 40, span: Optional[bool] = True) -> str:
+def truncate_string(string: str, length: int = 40, span: bool = True) -> str:
     """
     Returns a truncates string with '..' at the end if it was longer than length
     Also adds a span title (for mouse over) with the original string if parameter "span" is True
@@ -449,7 +449,7 @@ def truncate_string(string: str, length: Optional[int] = 40, span: Optional[bool
 
 def get_base_table_data(entity, file_stats=None):
     """ Returns standard table data for an entity"""
-    data = ['<br />'.join([link(entity)] + [
+    data = ['<br>'.join([link(entity)] + [
         truncate_string(alias) for alias in entity.aliases.values()])]
     if entity.view_name in ['event', 'actor']:
         data.append(g.classes[entity.class_.code].name)
@@ -540,3 +540,11 @@ def get_appearance(event_links):
                 last_string = format_entry_end(event) + ' ' + _('at an') + ' ' + event_link
                 last_string += (' ' + _('in') + ' ' + link(link_.object_)) if link_.object_ else ''
     return first_string, last_string
+
+
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False

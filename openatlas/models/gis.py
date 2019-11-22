@@ -16,8 +16,8 @@ class GisMapper:
 
     @staticmethod
     def get_all(objects=None) -> dict:
-        all_ = {'point': [], 'linestring': [], 'polygon': []}  # type: Dict
-        selected = {'point': [], 'linestring': [], 'polygon': [], 'polygon_point': []}  # type: Dict
+        all_: dict = {'point': [], 'linestring': [], 'polygon': []}
+        selected: dict = {'point': [], 'linestring': [], 'polygon': [], 'polygon_point': []}
         # Workaround to include GIS features of a subunit which would be otherwise omitted
         subunit_selected_id = 0
         if objects:
@@ -127,6 +127,26 @@ class GisMapper:
                     'description': sanitize(item['properties']['description'], 'description'),
                     'type': item['properties']['shapeType'],
                     'geojson': json.dumps(item['geometry'])})
+
+    @staticmethod
+    def insert_import(entity, location, project, easting, northing) -> None:
+        # Insert places from CSV imports
+        sql = """
+            INSERT INTO gis.point (entity_id, name, description, type, geom) VALUES (
+                %(entity_id)s,
+                %(name)s,
+                %(description)s,
+                %(type)s,
+                public.ST_SetSRID(public.ST_GeomFromGeoJSON(%(geojson)s),4326));"""
+        g.execute(sql, {
+            'entity_id': location.id,
+            'name': '',
+            'description': 'Imported centerpoint of {name} from the {project} project'.format(
+                name=sanitize(entity.name, 'description'),
+                project=sanitize(project.name, 'description')),
+            'type': 'centerpoint',
+            'geojson': '''{{"type":"Point", "coordinates": [{easting},{northing}]}}'''.format(
+                easting=easting, northing=northing)})
 
     @staticmethod
     def delete_by_entity(entity) -> None:
