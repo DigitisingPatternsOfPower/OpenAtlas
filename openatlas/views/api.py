@@ -1,12 +1,8 @@
 # Created by Alexander Watzinger and others. Please see README.md for licensing information
-
-
-from flask import render_template, json, request, url_for
+from flask import json, render_template, request, url_for
 
 from openatlas import app
 from openatlas.models.entity import EntityMapper
-from openatlas.models.gis import GisMapper
-from openatlas.models.geonames import GeonamesMapper
 from openatlas.util.util import required_group
 
 
@@ -19,6 +15,7 @@ def api_entity(version: str, id_: int) -> str:
     # geonames = GeonamesMapper.get_geonames_link(entity)
     data = {
         "type": "FeatureCollection",
+        "api_version": version,
         "@context": request.base_url,
         "feature": [
             {
@@ -101,8 +98,10 @@ def api_entity(version: str, id_: int) -> str:
                 ],
                 "descriptions": [
                     {"@id": "https://thanados.openatlas.eu/api/v01/50505",
-                     "value": "...In the area of Obere Holzwiese 215 inhumation burials were documented in different excavations. There might have been a wooden church in the north-western part of the areal, which might date back to the first half of the 9th century..."
-                     }
+                     "value": """...In the area of Obere Holzwiese 215 inhumation burials were 
+                     documented in different excavations. There might have been a wooden church in 
+                     the north-western part of the areal, which might date back to the first half 
+                     of the 9th century..."""}
                 ],
                 "depictions": [
                     {"@id": "https://thanados.openatlas.eu/display/112760.png",
