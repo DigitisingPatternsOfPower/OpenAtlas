@@ -4,6 +4,7 @@ import os
 from flask_babel import lazy_gettext as _
 
 VERSION = '4.0.0'
+API_VERSION = '0.1'
 DEMO_MODE = False  # If in demo mode some options are disabled and the login form is pre filled
 
 LANGUAGES = {'en': 'English', 'de': 'Deutsch'}

@@ -1,15 +1,20 @@
 # Created by Alexander Watzinger and others. Please see README.md for licensing information
+
+from pprint import pprint
+
 from flask import json, render_template
+from werkzeug.exceptions import abort
 
 from openatlas import app
 from openatlas.models.api import Api
 from openatlas.util.util import required_group
 
 
-@app.route('/api/<version>/entity/<int:id_>')
+@app.route('/api/0.1/entity/<int:id_>')
 @required_group('manager')
-def api_entity(version: str, id_: int) -> str:
-    return json.dumps(Api.get_entity(id_))
+def api_entity(id_: int) -> str:
+    pprint(Api.get_entity(id_))
+    return json.dumps(Api.get_entity(id_=id_))
 
 
 @app.route('/api')
